@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARTAGHAL ONLINE SERVICES – PDF to JPEG Converter</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --bg:        #07080f;
+  --bg2:       #0d1220;
+  --card:      rgba(13,18,35,0.92);
+  --border:    rgba(99,102,241,0.22);
+  --primary:   #6366f1;
+  --pri-light: #818cf8;
+  --accent:    #f59e0b;
+  --green:     #10b981;
+  --red:       #ef4444;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --glow:      0 0 40px rgba(99,102,241,0.25);
+  --glow-acc:  0 0 30px rgba(245,158,11,0.3);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Background mesh ─── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 20%, rgba(99,102,241,0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(245,158,11,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16,185,129,0.06) 0%, transparent 60%);
+}
+
+/* ─── Floating orbs ─── */
+.orb {
+  position:fixed; border-radius:50%; pointer-events:none; z-index:0;
+  filter:blur(80px); opacity:0.35; animation:drift linear infinite;
+}
+.orb1 { width:420px; height:420px; background:radial-gradient(circle, #6366f1, transparent); top:-100px; left:-120px; animation-duration:22s; }
+.orb2 { width:300px; height:300px; background:radial-gradient(circle, #f59e0b, transparent); bottom:-80px; right:-80px; animation-duration:17s; animation-delay:-8s; }
+.orb3 { width:200px; height:200px; background:radial-gradient(circle, #10b981, transparent); top:40%; left:70%; animation-duration:28s; animation-delay:-14s; }
+
+@keyframes drift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(30px, -20px) scale(1.05); }
+  66%      { transform: translate(-20px, 25px) scale(0.95); }
+}
+
+/* ─── Particles ─── */
+.particles { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.p { position:absolute; border-radius:50%; animation:rise linear infinite; opacity:0; }
+@keyframes rise {
+  0%   { transform:translateY(105vh); opacity:0; }
+  8%   { opacity:1; }
+  92%  { opacity:0.5; }
+  100% { transform:translateY(-5vh) scale(1.4); opacity:0; }
+}
+
+/* ─── Z wrapper ─── */
+.wrap { position:relative; z-index:2; }
+
+/* ─── Header ─── */
+header {
+  text-align:center;
+  padding: 56px 24px 36px;
+  border-bottom: 1px solid var(--border);
+  position:relative;
+}
+header::after {
+  content:'';
+  position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  width:200px; height:2px;
+  background:linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+  animation:shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%,100% { width:120px; opacity:0.5; }
+  50%      { width:320px; opacity:1; }
+}
+
+.brand {
+  font-family:'Poppins', sans-serif;
+  font-weight:800;
+  font-size: clamp(1.5rem, 5vw, 2.6rem);
+  letter-spacing:1px;
+  background: linear-gradient(135deg, #fff 30%, var(--pri-light) 65%, var(--accent));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  line-height:1.15;
+}
+.tagline {
+  font-size: clamp(0.72rem, 2vw, 0.9rem);
+  color: var(--muted);
+  letter-spacing:4px;
+  text-transform:uppercase;
+  margin-top:8px;
+  font-weight:500;
+}
+.free-pill {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(16,185,129,0.1);
+  border:1px solid rgba(16,185,129,0.3);
+  color:var(--green);
+  font-size:0.72rem; font-weight:600; letter-spacing:2px;
+  text-transform:uppercase; padding:5px 18px; border-radius:50px;
+  margin-top:14px;
+}
+
+/* ─── Live Clock ─── */
+.clock-row {
+  display:flex; justify-content:center; gap:14px; flex-wrap:wrap;
+  padding:24px 20px 10px;
+  max-width:820px; margin:0 auto;
+}
+.clock-card {
+  flex:1; min-width:150px; max-width:230px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px 22px;
+  text-align:center;
+  backdrop-filter:blur(20px);
+  box-shadow: var(--glow);
+  animation: float 5s ease-in-out infinite;
+}
+.clock-card:nth-child(2) { animation-delay:1s; }
+.clock-card:nth-child(3) { animation-delay:2s; }
+@keyframes float {
+  0%,100% { transform:translateY(0); }
+  50%      { transform:translateY(-7px); }
+}
+.ck-label { font-size:0.65rem; letter-spacing:3px; color:var(--primary); text-transform:uppercase; font-weight:600; margin-bottom:5px; font-family:'Poppins',sans-serif; }
+.ck-val   { font-family:'Poppins',sans-serif; font-weight:700; font-size:clamp(1rem, 3vw, 1.45rem); color:#fff; letter-spacing:1px; }
+.ck-sub   { font-size:0.7rem; color:var(--muted); margin-top:3px; }
+
+/* ─── Main card ─── */
+.container { max-width:860px; margin:0 auto; padding:20px 20px 80px; }
+
+.main-card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:28px;
+  padding:48px 42px;
+  backdrop-filter:blur(30px);
+  box-shadow: var(--glow), 0 40px 90px rgba(0,0,0,0.55);
+  position:relative; overflow:hidden;
+  animation:card-in 0.65s cubic-bezier(.22,1,.36,1);
+}
+@keyframes card-in {
+  from { opacity:0; transform:translateY(32px) scale(0.97); }
+  to   { opacity:1; transform:none; }
+}
+.main-card::before {
+  content:'';
+  position:absolute; top:-1px; left:12%; right:12%; height:2px;
+  background:linear-gradient(90deg, transparent, var(--primary), var(--pri-light), var(--accent), transparent);
+}
+
+.card-title {
+  font-family:'Poppins',sans-serif;
+  font-weight:700;
+  font-size:clamp(1.1rem, 3vw, 1.55rem);
+  text-align:center;
+  margin-bottom:32px;
+  color:#fff;
+  letter-spacing:0.5px;
+}
+.card-title span { color:var(--accent); }
+
+/* ─── Drop zone ─── */
+.drop-zone {
+  border:2px dashed rgba(99,102,241,0.35);
+  border-radius:20px;
+  padding:64px 24px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.3s ease;
+  background:rgba(99,102,241,0.04);
+  position:relative;
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color:var(--primary);
+  background:rgba(99,102,241,0.1);
+  box-shadow:var(--glow);
+}
+.drop-icon { font-size:3.2rem; margin-bottom:14px; display:block; animation:bob 2.5s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+.drop-main  { font-family:'Poppins',sans-serif; font-weight:600; font-size:1.15rem; color:var(--pri-light); margin-bottom:6px; }
+.drop-sub   { font-size:0.82rem; color:var(--muted); }
+#pdfInput   { display:none; }
+
+/* ─── Options row ─── */
+.options-row {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+  margin-top:26px;
+}
+@media(max-width:580px){ .options-row { grid-template-columns:1fr 1fr; } }
+@media(max-width:380px){ .options-row { grid-template-columns:1fr; } }
+
+.opt-group label {
+  display:block;
+  font-size:0.68rem; letter-spacing:3px; font-weight:600;
+  color:var(--primary); text-transform:uppercase;
+  margin-bottom:8px; font-family:'Poppins',sans-serif;
+}
+.opt-group select, .opt-group input[type=number] {
+  width:100%;
+  background:rgba(99,102,241,0.07);
+  border:1px solid rgba(99,102,241,0.22);
+  border-radius:11px;
+  padding:12px 14px;
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:0.88rem;
+  outline:none;
+  transition:border-color 0.25s;
+  -webkit-appearance:none;
+}
+.opt-group select:focus, .opt-group input[type=number]:focus {
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(99,102,241,0.18);
+}
+.opt-group select option { background:#0d1220; }
+
+/* ─── File info bar ─── */
+.file-info {
+  display:none;
+  align-items:center; gap:14px; flex-wrap:wrap;
+  background:rgba(99,102,241,0.08);
+  border:1px solid rgba(99,102,241,0.2);
+  border-radius:14px;
+  padding:16px 20px;
+  margin-top:20px;
+}
+.file-info.show { display:flex; }
+.fi-icon { font-size:2rem; flex-shrink:0; }
+.fi-details { flex:1; }
+.fi-name { font-family:'Poppins',sans-serif; font-weight:600; font-size:0.95rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:340px; }
+.fi-meta { font-size:0.75rem; color:var(--muted); margin-top:3px; }
+.fi-remove {
+  background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3);
+  color:var(--red); border-radius:8px; padding:7px 14px;
+  font-size:0.8rem; font-weight:600; cursor:pointer; transition:all 0.2s; flex-shrink:0;
+}
+.fi-remove:hover { background:rgba(239,68,68,0.3); }
+
+/* ─── CTA Button ─── */
+.cta-btn {
+  width:100%; margin-top:26px;
+  padding:18px;
+  background:linear-gradient(135deg, var(--primary) 0%, #8b5cf6 50%, var(--accent) 100%);
+  background-size:200% 200%;
+  border:none; border-radius:14px;
+  color:#fff; font-family:'Poppins',sans-serif; font-weight:700;
+  font-size:1.05rem; letter-spacing:1px; text-transform:uppercase;
+  cursor:pointer;
+  transition:all 0.3s ease;
+  box-shadow:0 8px 32px rgba(99,102,241,0.4);
+  animation:grad-move 4s ease infinite;
+  display:none;
+}
+@keyframes grad-move {
+  0%,100% { background-position:0% 50%; }
+  50%      { background-position:100% 50%; }
+}
+.cta-btn:hover  { transform:translateY(-3px); box-shadow:0 16px 44px rgba(99,102,241,0.55); }
+.cta-btn:active { transform:translateY(1px); }
+.cta-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+/* ─── Progress ─── */
+.progress-box {
+  display:none; margin-top:22px;
+  background:rgba(0,0,0,0.25); border-radius:14px; padding:22px 24px;
+  border:1px solid var(--border);
+}
+.progress-box.show { display:block; }
+.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.prog-label  { font-family:'Poppins',sans-serif; font-size:0.85rem; font-weight:600; color:var(--pri-light); }
+.prog-pct    { font-family:'Poppins',sans-serif; font-size:0.85rem; font-weight:700; color:var(--accent); }
+.prog-track  { background:rgba(255,255,255,0.07); border-radius:50px; height:8px; overflow:hidden; }
+.prog-fill   {
+  height:100%; border-radius:50px; width:0%;
+  background:linear-gradient(90deg, var(--primary), var(--pri-light), var(--accent));
+  background-size:200% 100%;
+  transition:width 0.35s ease;
+  animation:prog-shine 1.5s linear infinite;
+  box-shadow:0 0 12px var(--primary);
+}
+@keyframes prog-shine {
+  0%   { background-position:200% 0; }
+  100% { background-position:-200% 0; }
+}
+.prog-sub { font-size:0.75rem; color:var(--muted); margin-top:8px; text-align:center; }
+
+/* ─── Preview Grid ─── */
+.preview-section { margin-top:36px; display:none; }
+.preview-section.show { display:block; }
+.prev-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:18px; flex-wrap:wrap; gap:10px;
+}
+.prev-title  { font-family:'Poppins',sans-serif; font-weight:700; font-size:1rem; color:#fff; }
+.prev-count  {
+  background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3);
+  color:var(--pri-light); font-family:'Poppins',sans-serif; font-size:0.78rem;
+  font-weight:600; padding:4px 14px; border-radius:50px;
+}
+.prev-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(145px,1fr)); gap:14px;
+}
+.prev-item {
+  border-radius:14px; overflow:hidden;
+  border:1px solid var(--border); background:#0a0d1a;
+  position:relative; aspect-ratio:0.707;
+  animation:pop-in 0.45s cubic-bezier(.22,1,.36,1) both;
+  transition:transform 0.25s, box-shadow 0.25s;
+}
+@keyframes pop-in {
+  from { opacity:0; transform:scale(0.82) translateY(14px); }
+  to   { opacity:1; transform:none; }
+}
+.prev-item:hover { transform:translateY(-5px) scale(1.02); box-shadow:0 16px 40px rgba(99,102,241,0.35); border-color:var(--primary); }
+.prev-item img  { width:100%; height:100%; object-fit:cover; display:block; }
+.prev-num {
+  position:absolute; top:8px; left:8px;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(6px);
+  color:#fff; font-family:'Poppins',sans-serif; font-size:0.65rem; font-weight:700;
+  padding:3px 9px; border-radius:6px;
+}
+.dl-btn {
+  position:absolute; bottom:8px; right:8px;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  border:none; color:#fff; border-radius:8px;
+  padding:6px 10px; font-size:0.68rem; font-weight:700;
+  cursor:pointer; opacity:0; transition:opacity 0.2s;
+  font-family:'Poppins',sans-serif; letter-spacing:0.5px;
+}
+.prev-item:hover .dl-btn { opacity:1; }
+
+/* ─── Download all ─── */
+.dl-all-row {
+  display:none; gap:12px; flex-wrap:wrap; margin-top:20px;
+}
+.dl-all-row.show { display:flex; }
+.dl-btn-all {
+  flex:1; min-width:180px; padding:15px;
+  border:none; border-radius:13px;
+  font-family:'Poppins',sans-serif; font-weight:700; font-size:0.95rem;
+  letter-spacing:0.5px; cursor:pointer; transition:all 0.3s;
+}
+.dl-zip {
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff; box-shadow:0 6px 22px rgba(99,102,241,0.4);
+}
+.dl-zip:hover   { transform:translateY(-2px); box-shadow:0 12px 32px rgba(99,102,241,0.55); }
+.dl-single {
+  background:linear-gradient(135deg,var(--accent),#f97316);
+  color:#fff; box-shadow:0 6px 22px rgba(245,158,11,0.35);
+}
+.dl-single:hover { transform:translateY(-2px); box-shadow:0 12px 32px rgba(245,158,11,0.5); }
+.reset-btn {
+  background:rgba(239,68,68,0.12);
+  border:1px solid rgba(239,68,68,0.3);
+  color:var(--red);
+  box-shadow:none;
+}
+.reset-btn:hover { background:rgba(239,68,68,0.25); transform:translateY(-2px); }
+
+/* ─── Stats row ─── */
+.stats-row {
+  display:none; justify-content:center; gap:20px; flex-wrap:wrap;
+  margin-top:20px; padding:18px;
+  background:rgba(99,102,241,0.05);
+  border:1px solid rgba(99,102,241,0.14);
+  border-radius:14px;
+}
+.stats-row.show { display:flex; }
+.stat { text-align:center; }
+.stat strong { display:block; font-family:'Poppins',sans-serif; font-weight:700; font-size:1.2rem; color:var(--pri-light); }
+.stat span   { font-size:0.68rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+
+/* ─── Features strip ─── */
+.features {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+  margin-top:36px;
+}
+@media(max-width:580px){ .features { grid-template-columns:1fr; } }
+.feat {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:22px 18px;
+  text-align:center;
+  backdrop-filter:blur(14px);
+  transition:all 0.3s;
+}
+.feat:hover { border-color:var(--primary); box-shadow:var(--glow); transform:translateY(-3px); }
+.feat-icon { font-size:1.8rem; margin-bottom:10px; }
+.feat-name { font-family:'Poppins',sans-serif; font-weight:600; font-size:0.88rem; color:#fff; margin-bottom:5px; }
+.feat-desc { font-size:0.75rem; color:var(--muted); line-height:1.5; }
+
+/* ─── Footer ─── */
+footer {
+  position:relative; z-index:2;
+  background:rgba(0,0,0,0.55);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  padding:52px 24px 32px;
+  text-align:center;
+}
+.ft-brand {
+  font-family:'Poppins',sans-serif; font-weight:800;
+  font-size:clamp(1rem,3vw,1.4rem);
+  background:linear-gradient(135deg,#fff 30%,var(--pri-light) 65%,var(--accent));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  letter-spacing:1px; margin-bottom:18px;
+}
+.ft-divider { width:80px; height:1px; background:linear-gradient(90deg,transparent,var(--primary),transparent); margin:14px auto; }
+.ft-tagline { font-size:0.82rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:26px; }
+.contact-row { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:26px; }
+.contact-chip {
+  display:flex; align-items:center; gap:10px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px; padding:16px 26px;
+  text-decoration:none;
+  transition:all 0.3s;
+}
+.contact-chip:hover { border-color:var(--primary); box-shadow:var(--glow); transform:translateY(-3px); }
+.contact-chip .chip-icon { font-size:1.5rem; }
+.chip-num   { font-family:'Poppins',sans-serif; font-weight:700; font-size:0.95rem; color:var(--pri-light); letter-spacing:1px; }
+.chip-label { font-size:0.68rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+.ft-copy    { font-size:0.75rem; color:var(--muted); letter-spacing:1px; margin-top:10px; }
+
+/* ─── Toast ─── */
+.toast {
+  position:fixed; bottom:28px; right:28px; z-index:999;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:14px; padding:14px 22px;
+  font-family:'Poppins',sans-serif; font-size:0.88rem; font-weight:500;
+  color:#fff; box-shadow:var(--glow);
+  transform:translateX(140%); transition:transform 0.4s cubic-bezier(.22,1,.36,1);
+  max-width:280px;
+}
+.toast.show { transform:translateX(0); }
+
+/* scrollbar */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--primary); border-radius:3px; }
+
+@media(max-width:600px){ .main-card { padding:28px 18px; } }
+</style>
+</head>
+<body>
+
+<!-- Orbs -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- Particles -->
+<div class="particles" id="particles"></div>
+
+<div class="wrap">
+
+<!-- ─── Header ─── -->
+<header>
+  <div class="brand">⚡ ARTAGHAL ONLINE SERVICES</div>
+  <div class="tagline">PDF to JPEG Converter — Fast &amp; Free</div>
+  <div class="free-pill">✅ Free &nbsp;·&nbsp; Unlimited &nbsp;·&nbsp; No Watermark &nbsp;·&nbsp; No Sign‑up</div>
+</header>
+
+<!-- ─── Live Clock ─── -->
+<div class="clock-row">
+  <div class="clock-card">
+    <div class="ck-label">📅 Date</div>
+    <div class="ck-val" id="ckDate">--</div>
+    <div class="ck-sub" id="ckDay">--</div>
+  </div>
+  <div class="clock-card">
+    <div class="ck-label">🕐 Time</div>
+    <div class="ck-val" id="ckTime">--:--:--</div>
+    <div class="ck-sub" id="ckAmPm">--</div>
+  </div>
+  <div class="clock-card">
+    <div class="ck-label">🌍 Timezone</div>
+    <div class="ck-val" id="ckTz" style="font-size:0.95rem">--</div>
+    <div class="ck-sub" id="ckUtc">UTC --</div>
+  </div>
+</div>
+
+<!-- ─── Main ─── -->
+<div class="container">
+
+  <div class="main-card">
+    <div class="card-title">📄 PDF to <span>JPEG</span> Converter</div>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('pdfInput').click()">
+      <span class="drop-icon">📑</span>
+      <div class="drop-main">Drop your PDF here or click to browse</div>
+      <div class="drop-sub">Any PDF — any size — unlimited pages — completely free</div>
+    </div>
+    <input type="file" id="pdfInput" accept="application/pdf">
+
+    <!-- File info -->
+    <div class="file-info" id="fileInfo">
+      <div class="fi-icon">📄</div>
+      <div class="fi-details">
+        <div class="fi-name" id="fiName">file.pdf</div>
+        <div class="fi-meta" id="fiMeta">0 pages · 0 KB</div>
+      </div>
+      <button class="fi-remove" onclick="resetAll()">✕ Remove</button>
+    </div>
+
+    <!-- Options -->
+    <div class="options-row" id="optRow" style="display:none">
+      <div class="opt-group">
+        <label>📐 Image Quality</label>
+        <select id="quality">
+          <option value="2.5">Ultra HD (2.5×)</option>
+          <option value="2" selected>High (2×)</option>
+          <option value="1.5">Medium (1.5×)</option>
+          <option value="1">Standard (1×)</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label>🖼️ Format</label>
+        <select id="format">
+          <option value="jpeg">JPEG</option>
+          <option value="png">PNG (lossless)</option>
+          <option value="webp">WebP</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label>🎨 JPEG Quality %</label>
+        <input type="number" id="jpegQ" value="92" min="10" max="100">
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <button class="cta-btn" id="convertBtn" onclick="startConvert()">🚀 Convert to Images Now</button>
+
+    <!-- Progress -->
+    <div class="progress-box" id="progressBox">
+      <div class="prog-header">
+        <span class="prog-label" id="progLabel">Converting page 1…</span>
+        <span class="prog-pct"  id="progPct">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-sub"   id="progSub">Please wait…</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat"><strong id="stPages">0</strong><span>Pages</span></div>
+      <div class="stat"><strong id="stTime">0s</strong><span>Time Taken</span></div>
+      <div class="stat"><strong id="stSize">0 KB</strong><span>Total Size</span></div>
+    </div>
+
+    <!-- Preview grid -->
+    <div class="preview-section" id="previewSection">
+      <div class="prev-header">
+        <div class="prev-title">🖼️ Converted Images</div>
+        <div class="prev-count" id="prevCount">0 images</div>
+      </div>
+      <div class="prev-grid" id="prevGrid"></div>
+    </div>
+
+    <!-- Download all -->
+    <div class="dl-all-row" id="dlRow">
+      <button class="dl-btn-all dl-zip"    onclick="downloadZip()">📦 Download All as ZIP</button>
+      <button class="dl-btn-all dl-single" onclick="downloadAll()">⬇️ Download One by One</button>
+      <button class="dl-btn-all reset-btn" onclick="resetAll()">🗑️ Convert Another PDF</button>
+    </div>
+
+  </div>
+
+  <!-- Features -->
+  <div class="features">
+    <div class="feat">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-name">Lightning Fast</div>
+      <div class="feat-desc">Converts directly in your browser — no upload delays, no server wait.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔒</div>
+      <div class="feat-name">100% Private</div>
+      <div class="feat-desc">Your PDF never leaves your device. All processing happens locally.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">♾️</div>
+      <div class="feat-name">Truly Unlimited</div>
+      <div class="feat-desc">No page limits, no file size caps, no sign-up required. Ever.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── Footer ─── -->
+<footer>
+  <div class="ft-brand">⚡ ARTAGHAL ONLINE SERVICES</div>
+  <div class="ft-divider"></div>
+  <div class="ft-tagline">Free Online Tools — Fast, Private &amp; Unlimited</div>
+  <div class="contact-row">
+    <a href="tel:03359348858" class="contact-chip">
+      <span class="chip-icon">📱</span>
+      <div>
+        <div class="chip-num">0335-9348858</div>
+        <div class="chip-label">Contact Us</div>
+      </div>
+    </a>
+    <a href="tel:03306105115" class="contact-chip">
+      <span class="chip-icon">📞</span>
+      <div>
+        <div class="chip-num">0330-6105115</div>
+        <div class="chip-label">Contact Us</div>
+      </div>
+    </a>
+  </div>
+  <div class="ft-divider"></div>
+  <div class="ft-copy">© 2024 ARTAGHAL ONLINE SERVICES — All Rights Reserved<br>PDF to JPEG Converter — Free, Unlimited, No Watermarks</div>
+</footer>
+
+</div><!-- .wrap -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── PDF.js worker ───────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+// ─── Particles ───────────────────────────────────────────────────────
+(function(){
+  const c = document.getElementById('particles');
+  const cols = ['#6366f1','#818cf8','#f59e0b','#10b981','#a78bfa','#fff'];
+  for(let i=0;i<55;i++){
+    const p = document.createElement('div');
+    p.className='p';
+    const s = Math.random()*4+1.5;
+    p.style.cssText=`
+      width:${s}px;height:${s}px;
+      left:${Math.random()*100}%;
+      background:${cols[Math.floor(Math.random()*cols.length)]};
+      animation-duration:${9+Math.random()*18}s;
+      animation-delay:${Math.random()*12}s;
+      box-shadow:0 0 ${s*2}px currentColor;
+    `;
+    c.appendChild(p);
+  }
+})();
+
+// ─── Live Clock ───────────────────────────────────────────────────────
+function tick(){
+  const n=new Date();
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('ckDate').textContent=
+    `${String(n.getDate()).padStart(2,'0')} ${mos[n.getMonth()]} ${n.getFullYear()}`;
+  document.getElementById('ckDay').textContent=days[n.getDay()];
+  const h=n.getHours(),m=n.getMinutes(),s=n.getSeconds();
+  const ap=h>=12?'PM':'AM';
+  document.getElementById('ckTime').textContent=
+    `${String(h%12||12).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('ckAmPm').textContent=ap;
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'Local';
+  const off=-n.getTimezoneOffset();
+  const sg=off>=0?'+':'-';
+  const oh=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');
+  const om=String(Math.abs(off)%60).padStart(2,'0');
+  document.getElementById('ckTz').textContent=tz.split('/').pop().replace(/_/g,' ');
+  document.getElementById('ckUtc').textContent=`UTC ${sg}${oh}:${om}`;
+}
+setInterval(tick,1000); tick();
+
+// ─── Drag & Drop ──────────────────────────────────────────────────────
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault(); dz.classList.remove('over');
+  const f=[...e.dataTransfer.files].find(x=>x.type==='application/pdf');
+  if(f) loadPDF(f); else toast('⚠️ Please drop a PDF file.');
+});
+document.getElementById('pdfInput').addEventListener('change',e=>{
+  if(e.target.files[0]) loadPDF(e.target.files[0]);
+});
+
+// ─── State ────────────────────────────────────────────────────────────
+let pdfDoc=null, results=[], totalPages=0, currentFile=null;
+
+async function loadPDF(file){
+  currentFile=file;
+  const ab=await file.arrayBuffer();
+  pdfDoc=await pdfjsLib.getDocument({data:ab}).promise;
+  totalPages=pdfDoc.numPages;
+
+  // file info
+  document.getElementById('fiName').textContent=file.name;
+  document.getElementById('fiMeta').textContent=
+    `${totalPages} page${totalPages!==1?'s':''} · ${fmtSize(file.size)}`;
+  document.getElementById('fileInfo').classList.add('show');
+  document.getElementById('optRow').style.display='grid';
+  document.getElementById('convertBtn').style.display='block';
+  dz.style.display='none';
+  toast(`✅ PDF loaded — ${totalPages} pages ready!`);
+}
+
+// ─── Convert ──────────────────────────────────────────────────────────
+async function startConvert(){
+  if(!pdfDoc){ toast('⚠️ Please load a PDF first.'); return; }
+  results=[];
+  const scale    = parseFloat(document.getElementById('quality').value);
+  const fmt      = document.getElementById('format').value;
+  const jpegQ    = parseInt(document.getElementById('jpegQ').value)/100;
+  const mime     = fmt==='png'?'image/png':fmt==='webp'?'image/webp':'image/jpeg';
+  const ext      = fmt==='png'?'png':fmt==='webp'?'webp':'jpg';
+  const btn      = document.getElementById('convertBtn');
+  btn.disabled=true; btn.textContent='⏳ Converting…';
+
+  const pb  = document.getElementById('progressBox');
+  const pf  = document.getElementById('progFill');
+  const pl  = document.getElementById('progLabel');
+  const pp  = document.getElementById('progPct');
+  const ps  = document.getElementById('progSub');
+  pb.classList.add('show');
+
+  const t0=Date.now();
+  let totalBytes=0;
+
+  try {
+    for(let i=1;i<=totalPages;i++){
+      const pct=Math.round(((i-1)/totalPages)*100);
+      pf.style.width=pct+'%'; pp.textContent=pct+'%';
+      pl.textContent=`Converting page ${i} of ${totalPages}…`;
+      ps.textContent=`Page ${i} · Scale ${scale}× · Format ${ext.toUpperCase()}`;
+
+      const page    = await pdfDoc.getPage(i);
+      const vp      = page.getViewport({scale});
+      const canvas  = document.createElement('canvas');
+      canvas.width  = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      const ctx     = canvas.getContext('2d');
+      await page.render({canvasContext:ctx, viewport:vp}).promise;
+
+      // Convert to blob for reliable downloads
+      const dataURL = canvas.toDataURL(mime, jpegQ);
+      const byteStr = atob(dataURL.split(',')[1]);
+      const ab2     = new ArrayBuffer(byteStr.length);
+      const ia      = new Uint8Array(ab2);
+      for(let x=0;x<byteStr.length;x++) ia[x]=byteStr.charCodeAt(x);
+      const blob    = new Blob([ab2],{type:mime});
+      const blobURL = URL.createObjectURL(blob);
+
+      totalBytes += blob.size;
+      results.push({
+        dataURL,          // kept for ZIP
+        blobURL,          // used for preview img + individual download
+        blob,
+        name:`artaghal-page-${String(i).padStart(3,'0')}.${ext}`,
+        page:i,
+        mime,
+        ext
+      });
+
+      // yield to keep UI responsive
+      await new Promise(r=>setTimeout(r,10));
+    }
+  } catch(err){
+    toast('❌ Error: '+err.message);
+    btn.disabled=false; btn.textContent='🚀 Convert to Images Now';
+    return;
+  }
+
+  pf.style.width='100%'; pp.textContent='100%';
+  pl.textContent='✅ All pages converted!';
+  const elapsed=((Date.now()-t0)/1000).toFixed(1);
+
+  // stats
+  document.getElementById('stPages').textContent=totalPages;
+  document.getElementById('stTime').textContent=elapsed+'s';
+  document.getElementById('stSize').textContent=fmtSize(totalBytes);
+  document.getElementById('statsRow').classList.add('show');
+
+  renderPreviews();
+  document.getElementById('dlRow').classList.add('show');
+  btn.style.display='none';
+  toast(`🎉 ${totalPages} images ready to download!`);
+}
+
+function renderPreviews(){
+  const grid=document.getElementById('prevGrid');
+  grid.innerHTML='';
+  results.forEach((r,i)=>{
+    const d=document.createElement('div');
+    d.className='prev-item';
+    d.style.animationDelay=(i*0.04)+'s';
+    d.innerHTML=`
+      <img src="${r.blobURL}" alt="Page ${r.page}">
+      <div class="prev-num">Page ${r.page}</div>
+      <button class="dl-btn" onclick="dlSingle(${i})">⬇ Save</button>`;
+    grid.appendChild(d);
+  });
+  document.getElementById('prevCount').textContent=`${results.length} images`;
+  document.getElementById('previewSection').classList.add('show');
+}
+
+function dlSingle(i){
+  const r   = results[i];
+  // Use the pre-created blob URL — works in all browsers
+  const a   = document.createElement('a');
+  a.href    = r.blobURL;
+  a.download= r.name;
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function downloadAll(){
+  toast(`⬇️ Starting download of ${results.length} images…`);
+  for(let i=0;i<results.length;i++){
+    dlSingle(i);
+    // wait between downloads so browser doesn't block them
+    await new Promise(r=>setTimeout(r,600));
+  }
+  toast(`✅ All ${results.length} images downloaded!`);
+}
+
+async function downloadZip(){
+  if(typeof JSZip==='undefined'){ toast('ZIP library loading…'); return; }
+  toast('📦 Creating ZIP…');
+  const zip=new JSZip();
+  const folder=zip.folder('artaghal_images');
+  results.forEach(r=>{
+    const b64=r.dataURL.split(',')[1];
+    folder.file(r.name, b64, {base64:true});
+  });
+  const blob=await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:6}});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='artaghal_images.zip';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  toast(`✅ ZIP with ${results.length} images downloaded!`);
+}
+
+function resetAll(){
+  // revoke all blob URLs to free memory
+  results.forEach(r=>{ if(r.blobURL) URL.revokeObjectURL(r.blobURL); });
+  pdfDoc=null; results=[]; totalPages=0; currentFile=null;
+  document.getElementById('pdfInput').value='';
+  document.getElementById('fileInfo').classList.remove('show');
+  document.getElementById('optRow').style.display='none';
+  document.getElementById('convertBtn').style.display='none';
+  document.getElementById('convertBtn').disabled=false;
+  document.getElementById('convertBtn').textContent='🚀 Convert to Images Now';
+  document.getElementById('progressBox').classList.remove('show');
+  document.getElementById('statsRow').classList.remove('show');
+  document.getElementById('previewSection').classList.remove('show');
+  document.getElementById('dlRow').classList.remove('show');
+  document.getElementById('prevGrid').innerHTML='';
+  document.getElementById('progFill').style.width='0%';
+  dz.style.display='';
+  toast('🔄 Ready for a new PDF!');
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────
+function fmtSize(b){
+  if(b>1048576) return (b/1048576).toFixed(1)+' MB';
+  return Math.round(b/1024)+' KB';
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>
